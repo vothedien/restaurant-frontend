@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import CustomerPage from "./pages/Customer/CustomerPage.jsx";
+import AdminPage from "./pages/Admin/AdminPage.jsx";
 
 export default function App() {
   return (
@@ -7,6 +8,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/customer" replace />} />
         <Route path="/customer" element={<CustomerPage />} />
+        <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </BrowserRouter>
   );

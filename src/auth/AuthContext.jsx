@@ -22,11 +22,10 @@ export function AuthProvider({ children }) {
           setBasicAuth(saved.username, saved.password);
         }
       }
-    } catch (_) {}
+    } catch (_) { /* empty */ }
     setLoading(false);
   }, []);
 
-  // fetch /api/me when we have basic
   useEffect(() => {
     const run = async () => {
       if (!basic?.username || !basic?.password) return;

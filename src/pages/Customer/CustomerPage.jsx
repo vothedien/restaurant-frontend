@@ -27,7 +27,7 @@ export default function CustomerPage() {
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
-  // ✅ Khóa menu sau khi gửi order (đúng flow nhà hàng)
+  // Khóa menu sau khi gửi order (đúng flow nhà hàng)
   const [submitted, setSubmitted] = useState(false);
 
   const load = useCallback(
@@ -46,7 +46,7 @@ export default function CustomerPage() {
         setTable(t);
         setMenu(Array.isArray(m) ? m : []);
 
-        // ✅ nếu đổi token / tải lại bàn => reset trạng thái submit
+        // nếu đổi token / tải lại bàn => reset trạng thái submit
         setSubmitted(false);
         setCart({});
         setCustomerNote("");
@@ -74,7 +74,7 @@ export default function CustomerPage() {
   );
 
   const onAdd = (item) => {
-    if (submitted) return; // ✅ đã gửi rồi thì không cho thêm
+    if (submitted) return; // đã gửi rồi thì không cho thêm
     setCart((prev) => ({
       ...prev,
       [item.id]: {
@@ -85,7 +85,7 @@ export default function CustomerPage() {
   };
 
   const onDec = (itemId) => {
-    if (submitted) return; // ✅ đã gửi rồi thì không cho sửa
+    if (submitted) return; // đã gửi rồi thì không cho sửa
     setCart((prev) => {
       if (!prev[itemId]) return prev;
       if (prev[itemId].qty <= 1) {
@@ -129,7 +129,7 @@ export default function CustomerPage() {
 
       await orderApi.submitCustomerOrder(tk, body);
 
-      // ✅ đúng nghiệp vụ: khách gửi xong => chờ waiter xác nhận
+      // đúng nghiệp vụ: khách gửi xong => chờ waiter xác nhận
       setMsg("Đơn đã gửi. Vui lòng chờ nhân viên xác nhận 🙏");
       setSubmitted(true);
       setCart({});
@@ -241,7 +241,7 @@ export default function CustomerPage() {
             menu={menu}
             onAdd={onAdd}
             loading={loading}
-            disabled={submitted} // ✅ khóa menu sau submit
+            disabled={submitted} // khóa menu sau submit
           />
           {submitted && (
             <div style={{ marginTop: 12, fontWeight: 800, opacity: 0.8 }}>

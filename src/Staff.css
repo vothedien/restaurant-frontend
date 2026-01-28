@@ -16,7 +16,7 @@
   --s-line: rgba(252,211,77,.45);
 }
 
-/* ✅ GLOBAL FIX: box-sizing để khỏi lệch khung/input/table */
+/* GLOBAL FIX: box-sizing để khỏi lệch khung/input/table */
 *,
 *::before,
 *::after{

@@ -12,7 +12,8 @@ import {
 } from "../../api/admin.api.js";
 
 export default function MenuTab() {
-  const [msg, setMsg] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+  const [errMsg, setErrMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [categories, setCategories] = useState([]);
@@ -41,14 +42,15 @@ export default function MenuTab() {
   const [uploading, setUploading] = useState(false);
 
   async function load() {
-    setMsg("");
+    setOkMsg("");
+    setErrMsg("");
     try {
       setLoading(true);
       const [c, m] = await Promise.all([adminListCategories(), adminListMenuItems()]);
       setCategories(Array.isArray(c) ? c : []);
       setItems(Array.isArray(m) ? m : []);
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setLoading(false);
     }
@@ -59,45 +61,50 @@ export default function MenuTab() {
   }, []);
 
   async function createCategory() {
-    setMsg("");
-    if (!catName.trim()) return setMsg("Nhập tên category.");
+    setOkMsg("");
+    setErrMsg("");
+    if (!catName.trim()) return setErrMsg("Nhập tên category.");
+
     try {
       setLoading(true);
       await adminCreateCategory({ name: catName.trim() });
       setCatName("");
       setShowCreateCategory(false);
       await load();
-      setMsg("✅ Tạo category thành công.");
+      setOkMsg("✅ Tạo category thành công.");
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setLoading(false);
     }
   }
 
   async function uploadFile(file) {
-    setMsg("");
+    setOkMsg("");
+    setErrMsg("");
     if (!file) return;
 
     setImagePreview(URL.createObjectURL(file));
     try {
       setUploading(true);
       const res = await adminUploadMenuImage(file); // { imageUrl }
-      setImageUrl(res.imageUrl);
-      setMsg("✅ Upload ảnh thành công.");
+      setImageUrl(res?.imageUrl || "");
+      setOkMsg("✅ Upload ảnh thành công.");
     } catch (e) {
       setImageUrl("");
-      setMsg("Upload ảnh thất bại: " + getErrMsg(e));
+      setErrMsg("Upload ảnh thất bại: " + getErrMsg(e));
     } finally {
       setUploading(false);
     }
   }
 
   async function createItem() {
-    setMsg("");
-    if (!categoryId) return setMsg("Chọn category.");
-    if (!name.trim()) return setMsg("Nhập tên món.");
-    if (!imageUrl) return setMsg("Bạn chưa upload ảnh món ăn.");
+    setOkMsg("");
+    setErrMsg("");
+
+    if (!categoryId) return setErrMsg("Chọn category.");
+    if (!name.trim()) return setErrMsg("Nhập tên món.");
+    if (!imageUrl) return setErrMsg("Bạn chưa upload ảnh món ăn.");
 
     try {
       setLoading(true);
@@ -109,6 +116,7 @@ export default function MenuTab() {
         imageUrl,
       });
 
+      setCategoryId("");
       setName("");
       setPrice(0);
       setIsAvailable(true);
@@ -116,16 +124,17 @@ export default function MenuTab() {
       setImagePreview("");
       setShowCreateItem(false);
       await load();
-      setMsg("✅ Tạo món thành công.");
+      setOkMsg("✅ Tạo món thành công.");
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setLoading(false);
     }
   }
 
   async function saveItem(edit) {
-    setMsg("");
+    setOkMsg("");
+    setErrMsg("");
     try {
       setLoading(true);
       await adminUpdateMenuItem(edit.id, {
@@ -136,24 +145,26 @@ export default function MenuTab() {
         imageUrl: edit.imageUrl || null,
       });
       await load();
-      setMsg("✅ Đã lưu thay đổi.");
+      setOkMsg("✅ Đã lưu thay đổi.");
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setLoading(false);
     }
   }
 
   async function delItem(id) {
-    setMsg("");
+    setOkMsg("");
+    setErrMsg("");
     if (!window.confirm("Xóa món này?")) return;
+
     try {
       setLoading(true);
       await adminDeleteMenuItem(id);
       await load();
-      setMsg("✅ Đã xóa món.");
+      setOkMsg("✅ Đã xóa món.");
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setLoading(false);
     }
@@ -186,8 +197,12 @@ export default function MenuTab() {
             >
               {showCreateItem ? "Đóng tạo món" : "Tạo món"}
             </button>
-            <button onClick={load} className="rounded-xl border px-3 py-2 text-sm">
-              Refresh
+            <button
+              onClick={load}
+              disabled={loading}
+              className="rounded-xl border px-3 py-2 text-sm disabled:opacity-60"
+            >
+              {loading ? "Loading..." : "Refresh"}
             </button>
           </div>
         </div>
@@ -213,7 +228,8 @@ export default function MenuTab() {
           </select>
         </div>
 
-        {msg && <div className="mt-3 text-sm text-red-600">{msg}</div>}
+        {errMsg && <div className="mt-3 text-sm text-red-600">{errMsg}</div>}
+        {okMsg && <div className="mt-3 text-sm text-emerald-700">{okMsg}</div>}
 
         <div className="mt-4 grid gap-3">
           {filtered.map((it) => (
@@ -223,6 +239,11 @@ export default function MenuTab() {
               categories={categories}
               onSave={saveItem}
               onDelete={delItem}
+              disabled={loading}
+              onNotify={(type, text) => {
+                if (type === "ok") setOkMsg(text);
+                else setErrMsg(text);
+              }}
             />
           ))}
           {filtered.length === 0 && (
@@ -346,16 +367,24 @@ export default function MenuTab() {
   );
 }
 
-function MenuItemRow({ row, categories, onSave, onDelete }) {
+function MenuItemRow({ row, categories, onSave, onDelete, disabled, onNotify }) {
   const [edit, setEdit] = useState({ ...row });
   const [uploading, setUploading] = useState(false);
+
+  // ✅ sync edit state khi row refresh
+  useEffect(() => {
+    setEdit({ ...row });
+  }, [row]);
 
   async function uploadNew(file) {
     if (!file) return;
     try {
       setUploading(true);
       const res = await adminUploadMenuImage(file);
-      setEdit((p) => ({ ...p, imageUrl: res.imageUrl }));
+      setEdit((p) => ({ ...p, imageUrl: res?.imageUrl || "" }));
+      onNotify?.("ok", "✅ Đã upload ảnh mới (nhớ bấm Save).");
+    } catch (e) {
+      onNotify?.("err", "Upload ảnh thất bại: " + getErrMsg(e));
     } finally {
       setUploading(false);
     }
@@ -379,14 +408,14 @@ function MenuItemRow({ row, categories, onSave, onDelete }) {
           <div className="grid md:grid-cols-2 gap-2">
             <input
               className="rounded-xl border px-3 py-2"
-              value={edit.name}
+              value={edit.name ?? ""}
               onChange={(e) => setEdit((p) => ({ ...p, name: e.target.value }))}
             />
             <input
               className="rounded-xl border px-3 py-2"
               type="number"
               min={0}
-              value={edit.price}
+              value={edit.price ?? 0}
               onChange={(e) => setEdit((p) => ({ ...p, price: e.target.value }))}
             />
           </div>
@@ -394,7 +423,7 @@ function MenuItemRow({ row, categories, onSave, onDelete }) {
           <div className="grid md:grid-cols-2 gap-2">
             <select
               className="rounded-xl border px-3 py-2"
-              value={edit.categoryId}
+              value={edit.categoryId ?? ""}
               onChange={(e) => setEdit((p) => ({ ...p, categoryId: e.target.value }))}
             >
               {categories.map((c) => (
@@ -421,27 +450,29 @@ function MenuItemRow({ row, categories, onSave, onDelete }) {
               type="file"
               accept="image/*"
               onChange={(e) => uploadNew(e.target.files?.[0])}
-              disabled={uploading}
+              disabled={uploading || disabled}
             />
             <div className="mt-1 text-xs text-slate-500">
-              {uploading ? "Uploading..." : "Chọn file để đổi ảnh."}
+              {uploading ? "Uploading..." : "Chọn file để đổi ảnh (rồi bấm Save)."}
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <div className="text-sm text-slate-600">
-              <b>ID:</b> {row.id} • <b>Category:</b> {row.categoryName} • <b>Price:</b> {formatVND(edit.price)}
+              <b>ID:</b> {row.id} • <b>Price:</b> {formatVND(edit.price)}
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => onSave(edit)}
-                className="rounded-xl bg-black px-4 py-2 text-white"
+                disabled={disabled}
+                className="rounded-xl bg-black px-4 py-2 text-white disabled:opacity-60"
               >
                 Save
               </button>
               <button
                 onClick={() => onDelete(row.id)}
-                className="rounded-xl bg-rose-600 px-4 py-2 text-white"
+                disabled={disabled}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-white disabled:opacity-60"
               >
                 Delete
               </button>

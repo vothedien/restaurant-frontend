@@ -1,11 +1,15 @@
-export const EP = {
+// src/api/endpoints.js
+export const ENDPOINTS = {
   health: "/api/health",
 
   public: {
     tableInfo: (token) => `/api/public/tables/${encodeURIComponent(token)}`,
     menu: "/api/public/menu",
-    submitOrder: (token) => `/api/public/tables/${encodeURIComponent(token)}/submit`,
+    submitOrder: (token) =>
+      `/api/public/tables/${encodeURIComponent(token)}/submit`,
   },
+
+  me: "/api/me",
 
   tables: {
     list: "/api/tables",
@@ -17,26 +21,29 @@ export const EP = {
 
   orders: {
     draftByTable: (tableId) => `/api/orders/draft?tableId=${tableId}`,
-    confirm: (orderId) => `/api/orders/${orderId}/confirm`,
     detail: (orderId) => `/api/orders/${orderId}`,
+    confirm: (orderId) => `/api/orders/${orderId}/confirm`,
+    reject: (orderId) => `/api/orders/${orderId}/reject`,
 
     addItem: (orderId) => `/api/orders/${orderId}/items`,
     updateItem: (orderId, itemId) => `/api/orders/${orderId}/items/${itemId}`,
-    removeItem: (orderId, itemId) => `/api/orders/${orderId}/items/${itemId}`,
-    updateItemStatus: (orderId, itemId) => `/api/orders/${orderId}/items/${itemId}/status`,
+    deleteItem: (orderId, itemId) => `/api/orders/${orderId}/items/${itemId}`,
+    updateItemStatus: (orderId, itemId) =>
+      `/api/orders/${orderId}/items/${itemId}/status`,
 
     bill: (orderId) => `/api/orders/${orderId}/bill`,
     checkout: (orderId) => `/api/orders/${orderId}/checkout`,
   },
-   admin: {
+
+  admin: {
     tables: "/api/admin/tables",
-    tableById: (id) => `/api/admin/tables/${id}`,
     categories: "/api/admin/categories",
     menuItems: "/api/admin/menu-items",
-    menuItemById: (id) => `/api/admin/menu-items/${id}`,
     uploadMenuImage: "/api/admin/uploads/menu-image",
     transactions: "/api/admin/transactions",
-    invoiceByPaymentId: (paymentId) => `/api/admin/invoices/${paymentId}`,
+    invoice: (paymentId) => `/api/admin/invoices/${paymentId}`,
   },
-
 };
+
+// ✅ alias để code cũ dùng EP vẫn chạy
+export const EP = ENDPOINTS;

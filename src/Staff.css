@@ -1,0 +1,516 @@
+/* =========================================================
+   STAFF THEME — MỘC QUÁN (FINAL + FIX INVOICE ALIGNMENT)
+========================================================= */
+
+:root{
+  --mq-bg1:#fff3e5;
+  --mq-bg2:#fff7ea;
+  --mq-bg3:#fff1dc;
+  --mq-brown:#5c4033;
+  --mq-orange:#f97316;
+  --mq-orange2:#ea580c;
+  --mq-amber:#fbbf24;
+  --mq-text:#78350f;
+
+  --s-card: rgba(255,255,255,.70);
+  --s-line: rgba(252,211,77,.45);
+}
+
+/* ✅ GLOBAL FIX: box-sizing để khỏi lệch khung/input/table */
+*,
+*::before,
+*::after{
+  box-sizing: border-box;
+}
+
+/* ===== PAGE ===== */
+.staffPage{
+  min-height:100vh;
+  padding:18px 16px 36px;
+}
+.staffWrap{
+  max-width:1200px;
+  margin:0 auto;
+}
+
+/* ===== GRID ===== */
+.staffGrid{
+  display:grid;
+  grid-template-columns:380px 1fr;
+  gap:16px;
+  align-items:start;
+}
+@media(max-width:980px){
+  .staffGrid{ grid-template-columns:1fr; }
+}
+
+/* ===== CARD ===== */
+.staffCard{
+  background: var(--s-card);
+  border: 1px solid var(--s-line);
+  border-radius: 26px;
+  padding: 14px;
+  box-shadow: 0 18px 45px rgba(0,0,0,.08);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.staffCardHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.staffCardHeaderLeft{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.staffIcon{
+  width:44px;height:44px;
+  border-radius:16px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--mq-orange),var(--mq-orange2));
+  color:#fff;
+}
+
+/* ===== TITLES ===== */
+.cardTitle{
+  font-size:18px;
+  font-weight:950;
+  color:var(--mq-text);
+  letter-spacing:.2px;
+}
+.cardSub{
+  font-size:12px;
+  font-weight:750;
+  color:rgba(120,53,15,.6);
+}
+
+/* ===== BUTTONS ===== */
+.btn{
+  min-height:44px;
+  padding:10px 16px;
+  border-radius:18px;
+  border:none;
+  cursor:pointer;
+  font-weight:950;
+  letter-spacing:.2px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+.btnPrimary{
+  background:linear-gradient(135deg,#3b2a22,var(--mq-brown));
+  color:#fff;
+  box-shadow:0 14px 30px rgba(0,0,0,.12);
+}
+.btnOrange{
+  background:linear-gradient(135deg,var(--mq-orange),var(--mq-orange2));
+  color:#fff;
+  box-shadow:0 14px 30px rgba(249,115,22,.18);
+}
+.btnOutline{
+  background:rgba(255,255,255,.7);
+  border:1px solid rgba(252,211,77,.7);
+  color:var(--mq-text);
+}
+
+/* ===== TABLE LIST (LEFT) ===== */
+.tableList{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin-top:12px;
+}
+
+.tableBtn{
+  width:100%;
+  text-align:left;
+  background:rgba(255,255,255,.62);
+  border:1px solid rgba(252,211,77,.55);
+  border-radius:22px;
+  padding:16px;
+  position:relative;
+  overflow:hidden;
+}
+
+.tableBtn.active{
+  background:rgba(255,250,240,.9);
+  border-color:rgba(120,53,15,.7);
+  box-shadow:0 18px 45px rgba(120,53,15,.08);
+}
+
+.tableBtn.active::after{
+  content:"";
+  position:absolute;
+  left:0;top:10px;bottom:10px;
+  width:4px;
+  border-radius:999px;
+  background:linear-gradient(180deg,var(--mq-orange),var(--mq-orange2));
+}
+
+.tableTopRow{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+.tableCode{
+  font-size:18px;
+  font-weight:950;
+  color:var(--mq-text);
+}
+.tableCap{
+  margin-top:6px;
+  font-size:13px;
+  font-weight:800;
+  color:rgba(120,53,15,.7);
+}
+
+/* ===== BADGE ===== */
+.badge{
+  font-size:11px;
+  font-weight:950;
+  padding:7px 12px;
+  border-radius:999px;
+  border:1px solid rgba(252,211,77,.5);
+  background:#fff;
+  white-space:nowrap;
+}
+.badge.available{
+  background:rgba(34,197,94,.15);
+  color:#14532d;
+  border-color:rgba(34,197,94,.25);
+}
+.badge.occupied{
+  background:rgba(249,115,22,.15);
+  color:#7c2d12;
+  border-color:rgba(249,115,22,.25);
+}
+.badge.request{
+  background:rgba(239,68,68,.15);
+  color:#991b1b;
+  border-color:rgba(239,68,68,.25);
+}
+.badge.cleaning{
+  background:rgba(168,85,247,.15);
+  color:#581c87;
+  border-color:rgba(168,85,247,.25);
+}
+
+/* ===== RIGHT COLUMN STACK ===== */
+.staffRight{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+.selectedRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px;
+  border-radius:20px;
+  background:rgba(255,255,255,.6);
+  border:1px solid rgba(252,211,77,.45);
+}
+/* ✅ FIX: chữ selectedRow cho đều (bản cũ bạn có, bản này mất) */
+.selectedRow strong{
+  font-size:18px;
+  font-weight:950;
+  color:var(--mq-text);
+}
+
+/* ===== ACTION BAR (4 buttons) ===== */
+.actionsRow{
+  display:grid;
+  grid-template-columns:repeat(4, minmax(0,1fr));
+  gap:12px;
+  margin-top:12px;
+}
+.actionsRow .btn{
+  width:100%;
+  justify-content:center;
+  white-space:nowrap;
+}
+@media(max-width:980px){
+  .actionsRow{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+}
+@media(max-width:520px){
+  .actionsRow{ grid-template-columns:1fr; }
+}
+
+/* ===== ADD ITEM ===== */
+.formGrid{
+  display:grid;
+  grid-template-columns:1fr 110px;
+  gap:10px;
+}
+@media(max-width:520px){
+  .formGrid{ grid-template-columns:1fr; }
+}
+
+.inp{
+  height:46px;
+  border-radius:16px;
+  border:1px solid rgba(252,211,77,.55);
+  background:rgba(255,255,255,.70);
+  padding:0 14px;
+  font-weight:850;
+  color:var(--mq-text);
+}
+.inp::placeholder{
+  color:rgba(120,53,15,.55);
+  font-weight:750;
+}
+.inp[type="number"]{
+  text-align:center;
+  font-variant-numeric:tabular-nums;
+}
+
+/* ✅ FIX: input bị “dài hơn khung” ở vài browser */
+.inp{
+  width:100%;
+  max-width:100%;
+}
+
+/* ===== HR ===== */
+.hrSoft{
+  height:1px;
+  background:rgba(252,211,77,.30);
+  border:0;
+  margin:10px 0;
+}
+
+/* ===== MESSAGES ===== */
+.msgErr{
+  margin-top:10px;
+  padding:10px 12px;
+  border-radius:16px;
+  background:rgba(239,68,68,.1);
+  color:#991b1b;
+  font-weight:850;
+}
+.msgOk{
+  margin-top:10px;
+  padding:10px 12px;
+  border-radius:16px;
+  background:rgba(34,197,94,.1);
+  color:#14532d;
+  font-weight:850;
+}
+
+.muted{
+  color:rgba(120,53,15,.60);
+  font-weight:750;
+}
+
+/* =========================================================
+   INVOICE — FIX ALIGNMENT (QUAN TRỌNG)
+========================================================= */
+
+.invoiceBox{
+  border:1px dashed rgba(120,53,15,.35);
+  background:rgba(255,255,255,.75);
+  border-radius:20px;
+  padding:14px;
+  box-shadow:0 18px 45px rgba(120,53,15,.08);
+}
+
+.invoiceHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  padding-bottom:10px;
+  border-bottom:1px dashed rgba(120,53,15,.22);
+  margin-bottom:10px;
+}
+
+.invoiceTitle{
+  font-weight:950;
+  color:var(--mq-text);
+  letter-spacing:.2px;
+}
+
+.invoiceMeta{
+  font-size:12px;
+  font-weight:800;
+  color:rgba(120,53,15,.72);
+  line-height:1.5;
+}
+.invoiceMeta b{ color:var(--mq-text); }
+
+.miniTag{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:950;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(252,211,77,.55);
+  background:rgba(255,247,237,.85);
+  color:var(--mq-text);
+  font-variant-numeric:tabular-nums;
+}
+
+/* ===== THE TABLE (LOCKED) ===== */
+.invoiceTable{
+  width:100% !important;
+  table-layout:fixed !important;           /* khóa layout để không trôi */
+  border-collapse:collapse !important;
+}
+
+.invoiceTable th,
+.invoiceTable td{
+  padding:10px 10px !important;
+  vertical-align:middle !important;
+  font-variant-numeric:tabular-nums;
+}
+
+/* ép width theo cột (không phụ thuộc inline) */
+.invoiceTable th:nth-child(1),
+.invoiceTable td:nth-child(1){ width:55% !important; }
+
+.invoiceTable th:nth-child(2),
+.invoiceTable td:nth-child(2){ width:10% !important; }
+
+.invoiceTable th:nth-child(3),
+.invoiceTable td:nth-child(3){ width:17.5% !important; }
+
+.invoiceTable th:nth-child(4),
+.invoiceTable td:nth-child(4){ width:17.5% !important; }
+
+/* ép align chuẩn (tránh CSS global can thiệp) */
+.invoiceTable th{ 
+  text-align:left !important; 
+  font-size:11px !important;
+  letter-spacing:.6px !important;
+  text-transform:uppercase !important;
+  color:rgba(120,53,15,.65) !important;
+  border-bottom:1px solid rgba(252,211,77,.35) !important;
+}
+
+.invoiceTable th:nth-child(2),
+.invoiceTable th:nth-child(3),
+.invoiceTable th:nth-child(4),
+.invoiceTable td:nth-child(2),
+.invoiceTable td:nth-child(3),
+.invoiceTable td:nth-child(4){
+  text-align:right !important;
+  white-space:nowrap !important;
+}
+
+/* cell style */
+.invoiceTable td{
+  font-weight:850 !important;
+  color:rgba(120,53,15,.88) !important;
+  border-bottom:1px solid rgba(252,211,77,.18) !important;
+}
+
+.invoiceName{
+  font-weight:950 !important;
+  color:var(--mq-text) !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+
+.invoiceNote{
+  display:block !important;
+  margin-top:6px !important;
+  font-size:12px !important;
+  font-style:italic !important;
+  color:rgba(120,53,15,.60) !important;
+  white-space:normal !important;
+}
+
+/* hover row */
+.invoiceTable tbody tr:hover td{
+  background:rgba(255,247,237,.55) !important;
+}
+
+/* total box */
+.invoiceRowTotal{
+  margin-top:12px;
+  padding:12px 12px;
+  border-radius:16px;
+  border:1px solid rgba(252,211,77,.30);
+  background:rgba(255,247,237,.60);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  font-weight:950;
+  color:var(--mq-text);
+}
+.invoiceGrand{
+  font-size:16px;
+  letter-spacing:.2px;
+  font-variant-numeric:tabular-nums;
+}
+
+/* ✅ BONUS: nếu TablesPanel dùng class colName/colQty/colPrice/colTotal thì vẫn chuẩn */
+.colQty,.colPrice,.colTotal{
+  text-align:right !important;
+  white-space:nowrap !important;
+  font-variant-numeric:tabular-nums;
+}
+.colName{
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+}
+/* ===== MENU PICKER (waiter add item from public menu) ===== */
+.menuPicker{
+  margin-top: 2px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(252,211,77,.35);
+  background: rgba(255,255,255,.55);
+}
+
+.menuPickerHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.menuPickerTitle{
+  font-weight: 950;
+  color: var(--mq-text);
+}
+
+.menuPickerGrid{
+  display:grid;
+  grid-template-columns: 1fr 1.3fr 120px;
+  gap:10px;
+  align-items:center;
+}
+
+.menuPickerGrid > :nth-child(4),
+.menuPickerGrid > :nth-child(5){
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 980px){
+  .menuPickerGrid{ grid-template-columns: 1fr; }
+  .menuPickerGrid > *{ grid-column: auto !important; }
+}

@@ -4,14 +4,21 @@ import { formatVND } from "../../utils/money";
 import { adminGetInvoice, adminListTransactions } from "../../api/admin.api";
 
 function toIsoLocal(dt) {
-  // input type="datetime-local" thường ra: YYYY-MM-DDTHH:mm
-  // BE nhận ISO.DATE_TIME, thêm ":00" nếu thiếu seconds
   if (!dt) return null;
   return dt.length === 16 ? `${dt}:00` : dt;
 }
 
+function fmtDateTime(v) {
+  if (!v) return "";
+  // hỗ trợ cả ISO string / epoch / whatever
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return String(v);
+  return d.toLocaleString();
+}
+
 export default function TransactionsTab() {
-  const [msg, setMsg] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+  const [errMsg, setErrMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [from, setFrom] = useState("");
@@ -20,21 +27,19 @@ export default function TransactionsTab() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
 
-  const [data, setData] = useState(null); // Spring Page<TransactionSummaryDto>
+  const [data, setData] = useState(null);
   const [invoice, setInvoice] = useState(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   const content = data?.content || [];
   const totalPages = data?.totalPages ?? 0;
 
-  async function load() {
-    setMsg("");
+  async function load(p = page, s = size) {
+    setOkMsg("");
+    setErrMsg("");
     try {
       setLoading(true);
-      const params = {
-        page,
-        size,
-      };
+      const params = { page: p, size: s };
       const f = toIsoLocal(from);
       const t = toIsoLocal(to);
       if (f) params.from = f;
@@ -43,40 +48,48 @@ export default function TransactionsTab() {
       const res = await adminListTransactions(params);
       setData(res);
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    load();
+    load(page, size);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, size]);
 
   async function openInvoice(paymentId) {
-    setMsg("");
+    setOkMsg("");
+    setErrMsg("");
     try {
       setInvoiceLoading(true);
       const res = await adminGetInvoice(paymentId);
       setInvoice(res);
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setInvoiceLoading(false);
     }
+  }
+
+  function applyFilter() {
+    // reset về page 0 rồi load
+    setPage(0);
+    load(0, size);
+    setOkMsg("✅ Đã áp dụng bộ lọc.");
   }
 
   function resetFilter() {
     setFrom("");
     setTo("");
     setPage(0);
-    load();
+    load(0, size);
+    setOkMsg("✅ Đã reset bộ lọc.");
   }
 
   const summary = useMemo(() => {
-    const sum = content.reduce((acc, x) => acc + Number(x.totalAmount || 0), 0);
-    return sum;
+    return content.reduce((acc, x) => acc + Number(x.totalAmount || 0), 0);
   }, [content]);
 
   return (
@@ -84,8 +97,12 @@ export default function TransactionsTab() {
       <div className="rounded-2xl border bg-white p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="font-semibold">Lịch sử giao dịch</div>
-          <button onClick={load} className="rounded-xl border px-3 py-2 text-sm">
-            Refresh
+          <button
+            onClick={() => load(page, size)}
+            disabled={loading}
+            className="rounded-xl border px-3 py-2 text-sm disabled:opacity-60"
+          >
+            {loading ? "Loading..." : "Refresh"}
           </button>
         </div>
 
@@ -116,27 +133,31 @@ export default function TransactionsTab() {
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
               value={size}
               onChange={(e) => {
+                const n = Number(e.target.value);
                 setPage(0);
-                setSize(Number(e.target.value));
+                setSize(n);
+                load(0, n);
               }}
             >
               {[5, 10, 20, 50].map((n) => (
-                <option key={n} value={n}>{n}</option>
+                <option key={n} value={n}>
+                  {n}
+                </option>
               ))}
             </select>
           </div>
 
           <div className="flex gap-2">
             <button
-              onClick={() => { setPage(0); load(); }}
-              className="flex-1 rounded-xl bg-black px-3 py-2 text-sm text-white"
+              onClick={applyFilter}
+              className="flex-1 rounded-xl bg-black px-3 py-2 text-sm text-white disabled:opacity-60"
               disabled={loading}
             >
               Lọc
             </button>
             <button
               onClick={resetFilter}
-              className="flex-1 rounded-xl border px-3 py-2 text-sm"
+              className="flex-1 rounded-xl border px-3 py-2 text-sm disabled:opacity-60"
               disabled={loading}
             >
               Reset
@@ -144,7 +165,8 @@ export default function TransactionsTab() {
           </div>
         </div>
 
-        {msg && <div className="mt-3 text-sm text-red-600">{msg}</div>}
+        {errMsg && <div className="mt-3 text-sm text-red-600">{errMsg}</div>}
+        {okMsg && <div className="mt-3 text-sm text-emerald-700">{okMsg}</div>}
 
         <div className="mt-3 text-xs text-slate-500">
           Tổng tiền (trang hiện tại): <b>{formatVND(summary)}</b>
@@ -178,17 +200,18 @@ export default function TransactionsTab() {
               <tr key={t.paymentId} className="border-b">
                 <td className="py-2 pr-2">{t.paymentId}</td>
                 <td className="py-2 pr-2">{t.orderId}</td>
-                <td className="py-2 pr-2">{t.tableCode} (id={t.tableId})</td>
+                <td className="py-2 pr-2">
+                  {t.tableCode} (id={t.tableId})
+                </td>
                 <td className="py-2 pr-2 font-semibold">{formatVND(t.totalAmount)}</td>
                 <td className="py-2 pr-2">{t.method}</td>
-                <td className="py-2 pr-2">{String(t.paidAt || "")}</td>
-                <td className="py-2 pr-2">
-                  {t.cashierUsername || t.cashierUserId || "-"}
-                </td>
+                <td className="py-2 pr-2">{fmtDateTime(t.paidAt)}</td>
+                <td className="py-2 pr-2">{t.cashierUsername || t.cashierUserId || "-"}</td>
                 <td className="py-2 text-right">
                   <button
                     onClick={() => openInvoice(t.paymentId)}
-                    className="rounded-xl bg-emerald-600 px-3 py-1.5 text-white"
+                    disabled={loading}
+                    className="rounded-xl bg-emerald-600 px-3 py-1.5 text-white disabled:opacity-60"
                   >
                     View invoice
                   </button>
@@ -218,20 +241,15 @@ export default function TransactionsTab() {
           <button
             className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50"
             onClick={() => setPage((p) => p + 1)}
-            disabled={loading || (totalPages && page >= totalPages - 1)}
+            disabled={loading || (totalPages ? page >= totalPages - 1 : true)}
           >
             Next
           </button>
         </div>
       </div>
 
-      {/* Invoice modal */}
       {invoice && (
-        <InvoiceModal
-          invoice={invoice}
-          loading={invoiceLoading}
-          onClose={() => setInvoice(null)}
-        />
+        <InvoiceModal invoice={invoice} loading={invoiceLoading} onClose={() => setInvoice(null)} />
       )}
     </div>
   );
@@ -254,18 +272,36 @@ function InvoiceModal({ invoice, loading, onClose }) {
           <div className="p-4 grid gap-3">
             <div className="grid md:grid-cols-2 gap-2 text-sm">
               <div className="rounded-xl border p-3">
-                <div><b>Table:</b> {invoice.tableCode} (id={invoice.tableId})</div>
-                <div><b>Order:</b> {invoice.orderId}</div>
-                <div><b>Paid at:</b> {String(invoice.paidAt || "")}</div>
-                <div><b>Method:</b> {invoice.method}</div>
+                <div>
+                  <b>Table:</b> {invoice.tableCode} (id={invoice.tableId})
+                </div>
+                <div>
+                  <b>Order:</b> {invoice.orderId}
+                </div>
+                <div>
+                  <b>Paid at:</b> {String(invoice.paidAt || "")}
+                </div>
+                <div>
+                  <b>Method:</b> {invoice.method}
+                </div>
               </div>
 
               <div className="rounded-xl border p-3">
-                <div><b>Cashier:</b> {invoice.cashierUsername || invoice.cashierUserId || "-"}</div>
-                <div><b>Subtotal:</b> {formatVND(invoice.subtotal)}</div>
-                <div><b>Discount:</b> {formatVND(invoice.discountAmount)}</div>
-                <div><b>Tax:</b> {formatVND(invoice.taxAmount)}</div>
-                <div><b>Service fee:</b> {formatVND(invoice.serviceFeeAmount)}</div>
+                <div>
+                  <b>Cashier:</b> {invoice.cashierUsername || invoice.cashierUserId || "-"}
+                </div>
+                <div>
+                  <b>Subtotal:</b> {formatVND(invoice.subtotal)}
+                </div>
+                <div>
+                  <b>Discount:</b> {formatVND(invoice.discountAmount)}
+                </div>
+                <div>
+                  <b>Tax:</b> {formatVND(invoice.taxAmount)}
+                </div>
+                <div>
+                  <b>Service fee:</b> {formatVND(invoice.serviceFeeAmount)}
+                </div>
                 <div className="mt-1 text-base font-semibold">
                   Total: {formatVND(invoice.totalAmount)}
                 </div>
@@ -276,13 +312,18 @@ function InvoiceModal({ invoice, loading, onClose }) {
               <div className="font-semibold mb-2">Items</div>
               <div className="grid gap-2">
                 {(invoice.items || []).map((it) => (
-                  <div key={it.itemId} className="flex items-center justify-between border rounded-xl p-3 text-sm">
+                  <div
+                    key={it.itemId}
+                    className="flex items-center justify-between border rounded-xl p-3 text-sm"
+                  >
                     <div>
                       <div className="font-medium">{it.name}</div>
                       <div className="text-slate-600">
                         {formatVND(it.unitPrice)} × {it.qty} — <b>{it.status}</b>
                       </div>
-                      {it.note ? <div className="text-xs text-slate-500">Note: {it.note}</div> : null}
+                      {it.note ? (
+                        <div className="text-xs text-slate-500">Note: {it.note}</div>
+                      ) : null}
                     </div>
                     <div className="font-semibold">{formatVND(it.lineTotal)}</div>
                   </div>
@@ -292,7 +333,6 @@ function InvoiceModal({ invoice, loading, onClose }) {
                 )}
               </div>
             </div>
-
           </div>
         )}
       </div>

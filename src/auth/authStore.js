@@ -1,45 +1,56 @@
-import { api, setBasicAuth, clearAuth as clearAxiosAuth } from "../api/client";
-
+// src/auth/authStore.js
 const KEY = "auth";
 
-export async function loginWithBasicAuth(username, password, roleHint) {
-  setBasicAuth(username, password);
-
+/**
+ * Lấy auth từ localStorage
+ * { username, password, roles }
+ */
+export function getAuth() {
   try {
-    const res = await api.get("/api/me"); // BE xác thực thật
-    const auth = {
-      username,
-      password,                 // ✅ lưu password để giữ login
-      roleHint: roleHint || null,
-      roles: res.data?.roles || [],
-    };
-    localStorage.setItem(KEY, JSON.stringify(auth));
-    return auth;
-  } catch (e) {
-    clearAxiosAuth();
-    throw e;
-  }
-}
-
-export function loadAuth() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : null;
+    return JSON.parse(localStorage.getItem(KEY) || "null");
   } catch {
     return null;
   }
 }
 
-// ✅ gọi ở main.jsx để auto set Authorization header sau refresh
-export function initAuthFromStorage() {
-  const a = loadAuth();
-  if (a?.username && a?.password) {
-    setBasicAuth(a.username, a.password);
-  }
-  return a;
+/**
+ * Lưu auth sau khi login thành công
+ */
+export function setAuth(auth) {
+  localStorage.setItem(KEY, JSON.stringify(auth));
 }
 
-export function logout() {
+/**
+ * Xoá auth (logout)
+ */
+export function clearAuth() {
   localStorage.removeItem(KEY);
-  clearAxiosAuth();
+}
+
+/**
+ * Check đã login chưa
+ */
+export function isLoggedIn() {
+  const a = getAuth();
+  return !!(a?.username && a?.password && Array.isArray(a?.roles));
+}
+
+/**
+ * Check role
+ * requiredRoles: ["ROLE_ADMIN", ...]
+ */
+export function hasRole(requiredRoles = []) {
+  if (!requiredRoles.length) return true;
+  const a = getAuth();
+  const roles = a?.roles || [];
+  return requiredRoles.some((r) => roles.includes(r));
+}
+
+/**
+ * Header Basic Auth cho axios
+ */
+export function getBasicAuthHeader() {
+  const a = getAuth();
+  if (!a?.username || !a?.password) return null;
+  return "Basic " + btoa(`${a.username}:${a.password}`);
 }

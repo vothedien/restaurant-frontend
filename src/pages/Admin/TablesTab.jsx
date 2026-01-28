@@ -9,7 +9,8 @@ import {
 
 export default function TablesTab() {
   const [tables, setTables] = useState([]);
-  const [msg, setMsg] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+  const [errMsg, setErrMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
   // toggle create form
@@ -18,13 +19,14 @@ export default function TablesTab() {
   const [newCap, setNewCap] = useState(4);
 
   async function load() {
-    setMsg("");
+    setOkMsg("");
+    setErrMsg("");
     try {
       setLoading(true);
       const data = await adminListTables();
       setTables(Array.isArray(data) ? data : []);
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setLoading(false);
     }
@@ -35,8 +37,10 @@ export default function TablesTab() {
   }, []);
 
   async function create() {
-    setMsg("");
-    if (!newCode.trim()) return setMsg("Nhập code bàn (vd: T01).");
+    setOkMsg("");
+    setErrMsg("");
+    if (!newCode.trim()) return setErrMsg("Nhập code bàn (vd: T01).");
+
     try {
       setLoading(true);
       await adminCreateTable({ code: newCode.trim(), capacity: Number(newCap) });
@@ -44,16 +48,17 @@ export default function TablesTab() {
       setNewCap(4);
       setShowCreate(false);
       await load();
-      setMsg("✅ Tạo bàn thành công.");
+      setOkMsg("✅ Tạo bàn thành công.");
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setLoading(false);
     }
   }
 
   async function save(edit) {
-    setMsg("");
+    setOkMsg("");
+    setErrMsg("");
     try {
       setLoading(true);
       await adminUpdateTable(edit.id, {
@@ -62,32 +67,40 @@ export default function TablesTab() {
         status: edit.status,
       });
       await load();
-      setMsg("✅ Đã lưu thay đổi.");
+      setOkMsg("✅ Đã lưu thay đổi.");
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setLoading(false);
     }
   }
 
   async function del(id) {
-    setMsg("");
+    setOkMsg("");
+    setErrMsg("");
     if (!window.confirm("Xóa bàn này?")) return;
+
     try {
       setLoading(true);
       await adminDeleteTable(id);
       await load();
-      setMsg("✅ Đã xóa bàn.");
+      setOkMsg("✅ Đã xóa bàn.");
     } catch (e) {
-      setMsg(getErrMsg(e));
+      setErrMsg(getErrMsg(e));
     } finally {
       setLoading(false);
     }
   }
 
-  function copyToken(token) {
-    navigator.clipboard.writeText(token);
-    setMsg("✅ Đã copy qrToken.");
+  async function copyToken(token) {
+    setOkMsg("");
+    setErrMsg("");
+    try {
+      await navigator.clipboard.writeText(token);
+      setOkMsg("✅ Đã copy qrToken.");
+    } catch {
+      setErrMsg("Không copy được (trình duyệt chặn clipboard). Bạn bôi đen token rồi Ctrl+C nhé.");
+    }
   }
 
   return (
@@ -105,13 +118,18 @@ export default function TablesTab() {
               {showCreate ? "Đóng tạo bàn" : "Tạo bàn"}
             </button>
 
-            <button onClick={load} className="rounded-xl border px-3 py-2 text-sm">
-              Refresh
+            <button
+              onClick={load}
+              disabled={loading}
+              className="rounded-xl border px-3 py-2 text-sm disabled:opacity-60"
+            >
+              {loading ? "Loading..." : "Refresh"}
             </button>
           </div>
         </div>
 
-        {msg && <div className="mt-3 text-sm text-red-600">{msg}</div>}
+        {errMsg && <div className="mt-3 text-sm text-red-600">{errMsg}</div>}
+        {okMsg && <div className="mt-3 text-sm text-emerald-700">{okMsg}</div>}
 
         <table className="mt-3 w-full text-sm">
           <thead className="text-slate-600 border-b">
@@ -126,7 +144,14 @@ export default function TablesTab() {
           </thead>
           <tbody>
             {tables.map((t) => (
-              <TableRow key={t.id} row={t} onSave={save} onDelete={del} onCopy={copyToken} />
+              <TableRow
+                key={t.id}
+                row={t}
+                onSave={save}
+                onDelete={del}
+                onCopy={copyToken}
+                loading={loading}
+              />
             ))}
             {tables.length === 0 && (
               <tr>
@@ -139,7 +164,8 @@ export default function TablesTab() {
         </table>
 
         <div className="mt-2 text-xs text-slate-500">
-          Link cho khách: <span className="font-mono">/customer?token=QR_TOKEN</span>
+          Link cho khách:{" "}
+          <span className="font-mono">/customer?token=QR_TOKEN</span>
         </div>
       </div>
 
@@ -173,7 +199,7 @@ export default function TablesTab() {
               disabled={loading}
               className="rounded-xl bg-emerald-600 px-4 py-2 text-white disabled:opacity-50"
             >
-              Create
+              {loading ? "Creating..." : "Create"}
             </button>
           </div>
 
@@ -186,32 +212,40 @@ export default function TablesTab() {
   );
 }
 
-function TableRow({ row, onSave, onDelete, onCopy }) {
+function TableRow({ row, onSave, onDelete, onCopy, loading }) {
   const [edit, setEdit] = useState({ ...row });
+
+  // ✅ sync khi row thay đổi sau refresh/load
+  useEffect(() => {
+    setEdit({ ...row });
+  }, [row]);
 
   return (
     <tr className="border-b align-top">
       <td className="py-2 pr-2">{row.id}</td>
+
       <td className="py-2 pr-2">
         <input
           className="w-28 rounded-lg border px-2 py-1"
-          value={edit.code}
+          value={edit.code ?? ""}
           onChange={(e) => setEdit((p) => ({ ...p, code: e.target.value }))}
         />
       </td>
+
       <td className="py-2 pr-2">
         <input
           className="w-20 rounded-lg border px-2 py-1"
           type="number"
           min={1}
-          value={edit.capacity}
+          value={edit.capacity ?? 1}
           onChange={(e) => setEdit((p) => ({ ...p, capacity: e.target.value }))}
         />
       </td>
+
       <td className="py-2 pr-2">
         <select
           className="rounded-lg border px-2 py-1"
-          value={edit.status}
+          value={edit.status ?? "AVAILABLE"}
           onChange={(e) => setEdit((p) => ({ ...p, status: e.target.value }))}
         >
           <option value="AVAILABLE">AVAILABLE</option>
@@ -220,22 +254,30 @@ function TableRow({ row, onSave, onDelete, onCopy }) {
           <option value="CLEANING">CLEANING</option>
         </select>
       </td>
+
       <td className="py-2 pr-2">
         <div className="font-mono text-xs break-all">{row.qrToken}</div>
-        <button className="mt-1 text-xs underline" onClick={() => onCopy(row.qrToken)}>
+        <button
+          className="mt-1 text-xs underline"
+          onClick={() => onCopy(row.qrToken)}
+          disabled={loading}
+        >
           Copy
         </button>
       </td>
-      <td className="py-2 text-right space-x-2">
+
+      <td className="py-2 text-right space-x-2 whitespace-nowrap">
         <button
           onClick={() => onSave(edit)}
-          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-white"
+          disabled={loading}
+          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-white disabled:opacity-60"
         >
           Save
         </button>
         <button
           onClick={() => onDelete(row.id)}
-          className="rounded-lg bg-rose-600 px-3 py-1.5 text-white"
+          disabled={loading}
+          className="rounded-lg bg-rose-600 px-3 py-1.5 text-white disabled:opacity-60"
         >
           Delete
         </button>

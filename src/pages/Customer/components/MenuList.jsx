@@ -1,73 +1,134 @@
-import { useEffect, useState } from "react";
-import { getPublicMenu } from "../../../api/menu.api";
-import { getErrMsg } from "../../../utils/httpError";
+import React from "react";
+import { Plus, Sparkles, Leaf, Lock } from "lucide-react";
 
-export default function MenuList({ onAdd }) {
-  const [menu, setMenu] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState("");
-
-  async function loadMenu() {
-    setMsg("");
-    try {
-      setLoading(true);
-      const data = await getPublicMenu();
-      setMenu(data);
-    } catch (e) {
-      setMsg(getErrMsg(e));
-    } finally {
-      setLoading(false);
-    }
+export default function MenuList({ menu = [], onAdd, loading, disabled = false }) {
+  if (!menu || menu.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: 18 }}>
+        <Leaf size={48} color="#f59e0b" style={{ marginBottom: 12 }} />
+        <p style={{ margin: 0, fontWeight: 700, color: "var(--mq-text)" }}>
+          Thực đơn đang được chuẩn bị...
+        </p>
+      </div>
+    );
   }
 
-  useEffect(() => {
-    loadMenu();
-  }, []);
-
   return (
-    <div className="rounded-2xl border bg-white p-4">
-      <div className="flex items-center justify-between">
-        <div className="font-semibold">Menu</div>
-        <button
-          onClick={loadMenu}
-          className="text-sm underline disabled:opacity-50"
-          disabled={loading}
-        >
-          {loading ? "Loading..." : "Reload"}
-        </button>
-      </div>
-
-      {msg && <div className="mt-2 text-sm text-red-600">{msg}</div>}
-
-      <div className="mt-3 grid gap-2">
-        {menu.map((it) => (
-          <div key={it.id} className="flex items-center justify-between rounded-xl border p-3">
-            <div className="min-w-0">
-              <div className="font-medium truncate">{it.name}</div>
-              <div className="text-sm text-slate-600">
-                {it.price.toLocaleString("vi-VN")} đ
-              </div>
-              {!it.isAvailable && (
-                <div className="mt-1 inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                  Hết món
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() => onAdd?.(it)}
-              disabled={!it.isAvailable}
-              className="rounded-xl bg-emerald-600 px-3 py-2 text-sm text-white disabled:opacity-50"
-            >
-              + Thêm
-            </button>
+    <section>
+      <div className="menuHeader">
+        <div className="menuHeaderLeft">
+          <div className="menuSpark">
+            <Sparkles size={18} color="white" />
           </div>
-        ))}
+          <h2 className="menuTitle">Thực Đơn Quán</h2>
+        </div>
 
-        {!loading && menu.length === 0 && !msg && (
-          <div className="text-sm text-slate-500">Menu đang rỗng (chưa có dữ liệu).</div>
-        )}
+        <span className="menuBadge">{menu.length} món đặc sắc</span>
       </div>
-    </div>
+
+      {/* ✅ Nếu đã gửi order, hiển thị note nhỏ */}
+      {disabled && (
+        <div
+          style={{
+            margin: "6px 0 16px",
+            padding: "10px 12px",
+            borderRadius: 16,
+            background: "rgba(255,247,237,0.9)",
+            border: "1px solid rgba(252,211,77,0.35)",
+            fontWeight: 800,
+            color: "rgba(120,53,15,0.85)",
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+          }}
+        >
+          <Lock size={16} />
+          Bạn đã gửi order. Vui lòng chờ nhân viên xác nhận.
+        </div>
+      )}
+
+      <div className="menuGrid">
+        {menu.map((item) => {
+          const isDisabled = disabled || loading || item.isAvailable === false;
+
+          return (
+            <div
+              key={item.id}
+              className="menuCard"
+              style={disabled ? { opacity: 0.95 } : undefined}
+            >
+              <div className="menuMediaWrap">
+                <div className="menuMedia">
+                  <img
+                    src={resolveImage(item.imageUrl)}
+                    alt={item.name}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        "https://placehold.co/600x450?text=Moc+Quan";
+                    }}
+                    style={
+                      !item.isAvailable
+                        ? { filter: "grayscale(1)", opacity: 0.6 }
+                        : undefined
+                    }
+                  />
+
+                  {!item.isAvailable && (
+                    <div className="soldOutOverlay">
+                      <span className="soldOutTag">Hết hàng</span>
+                    </div>
+                  )}
+
+                  <div className="pricePill">
+                    {(item.price || 0).toLocaleString()}đ
+                  </div>
+                </div>
+              </div>
+
+              <div className="menuBody">
+                <div>
+                  <h3 className="menuName">{item.name}</h3>
+                  <p className="menuDesc">Hương vị truyền thống Mộc Quán</p>
+                </div>
+
+                <button
+                  className={`addBtn ${isDisabled ? "disabled" : ""}`}
+                  disabled={isDisabled}
+                  type="button"
+                  onClick={() => onAdd?.(item)}
+                  title={
+                    disabled
+                      ? "Bạn đã gửi order, vui lòng chờ nhân viên xác nhận"
+                      : !item.isAvailable
+                      ? "Món tạm hết"
+                      : ""
+                  }
+                >
+                  {disabled ? (
+                    <>
+                      <Lock size={18} />
+                      Đã gửi
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={18} />
+                      {isDisabled ? "Tạm hết" : "Thêm món"}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
+}
+
+function resolveImage(url) {
+  if (!url) return "https://placehold.co/600x450?text=Moc+Quan";
+  if (url.startsWith("http")) return url;
+  const BASE_URL = "http://localhost:8080";
+  return `${BASE_URL}${url.startsWith("/") ? url : `/${url}`}`;
 }

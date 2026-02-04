@@ -1,4 +1,4 @@
-// ActiveOrderPanel.jsx
+/* eslint-disable no-unused-vars */
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   getDraftByTable,
@@ -8,6 +8,7 @@ import {
   requestBill,
   setCleaning,
   setAvailable,
+  setItemStatus
 } from "../../../api/waiter.api";
 
 import AddItemForm from "./AddItemForm";
@@ -19,21 +20,23 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Lấy orderId từ order state hoặc từ props table
   const orderId = useMemo(
     () => order?.orderId || table.currentOrderId || null,
     [order, table.currentOrderId]
   );
 
+  // Hàm load dữ liệu order
   const loadOrder = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // 1) ưu tiên DRAFT theo tableId
+      // 1) Ưu tiên tìm DRAFT theo tableId
       const draft = await getDraftByTable(table.id);
       setOrder(draft);
     } catch (err) {
-      // 2) không có draft -> load ACTIVE bằng currentOrderId
+      // 2) Không có draft -> load ACTIVE bằng currentOrderId
       const currentId = table.currentOrderId;
 
       if (currentId) {
@@ -55,6 +58,7 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
     }
   }, [table.id, table.currentOrderId]);
 
+  // Load order khi component mount hoặc dependencies thay đổi
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
@@ -63,15 +67,32 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
   const isDraft = orderStatus === "DRAFT";
   const isActive = orderStatus === "ACTIVE";
 
+  // --- HÀM CONFIRM ---
+  // Khi confirm, Backend sẽ tự chuyển Items -> PENDING
   const handleConfirm = async () => {
     if (!orderId) return;
     if (!window.confirm("Xác nhận chuyển đơn vào bếp?")) return;
 
     try {
       setActionLoading(true);
+      
+      // 1. Xác nhận đơn (Order -> ACTIVE)
       await confirmOrder(orderId);
+
+      // 2. ✅ LOGIC MỚI: Ép tất cả món DRAFT -> PENDING
+      // (Phòng trường hợp Backend không tự làm)
+      const draftItems = order?.items?.filter(i => !i.status || i.status === 'DRAFT') || [];
+      
+      if (draftItems.length > 0) {
+        // Chạy song song tất cả lệnh update để nhanh hơn
+        await Promise.all(draftItems.map(item => {
+          const itemId = item.itemId || item.id;
+          return setItemStatus(orderId, itemId, "PENDING", "");
+        }));
+      }
+
       await reloadTables();
-      await loadOrder();
+      await loadOrder(); 
     } catch (e) {
       alert("Lỗi confirm: " + (e?.response?.data?.message || e.message));
     } finally {
@@ -175,7 +196,6 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
 
   const itemsList = order?.items || [];
 
-  // ✅ style nút để khỏi “dính” do box-shadow to của .addBtn
   const btnBase = {
     width: "100%",
     padding: "14px",
@@ -194,8 +214,12 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
 
         <div className="flex gap-2">
           <span className="menuBadge">{table.status}</span>
-          {orderId && <span className="menuBadge bg-white border-gray-300">#{orderId}</span>}
-          {orderStatus && <span className="menuBadge bg-white border-gray-300">{orderStatus}</span>}
+          {/* Chỉ hiện status Active/Draft, ko hiện OrderID cho đỡ rối */}
+          {orderStatus && (
+            <span className={`menuBadge ${isDraft ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+              {orderStatus}
+            </span>
+          )}
         </div>
       </div>
 
@@ -212,6 +236,10 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
               orderId={orderId}
               reload={loadOrder}
               orderStatus={orderStatus}
+              // ✅ QUAN TRỌNG:
+              // Nếu là Draft: Ẩn status select (vì chưa gửi bếp)
+              // Nếu là Active: Hiện status select (nhưng logic bên trong chỉ cho sửa khi READY)
+              hideStatusSelect={isDraft}
             />
           ))
         ) : (
@@ -226,7 +254,7 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
       </div>
 
       <div style={{ marginTop: "20px", borderTop: "2px solid #eee", paddingTop: "15px" }}>
-        {/* ✅ DRAFT: Confirm/Reject xếp dọc, có khoảng cách rõ */}
+        {/* Nút Confirm chỉ hiện khi là DRAFT */}
         {isDraft && (
           <div>
             <button
@@ -240,7 +268,7 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
               }}
               disabled={actionLoading || !orderId}
             >
-              {actionLoading ? "Đang xử lý..." : "Xác nhận đơn (Confirm)"}
+              {actionLoading ? "Đang xử lý..." : "Xác nhận đơn (Gửi bếp)"}
             </button>
 
             <div style={{ height: 14 }} />
@@ -261,7 +289,7 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
           </div>
         )}
 
-        {/* ✅ ACTIVE + OCCUPIED: Request bill */}
+        {/* Khi Active, chỉ hiện các nút thao tác bàn */}
         {isActive && table.status === "OCCUPIED" && (
           <button
             onClick={handleRequestBill}
@@ -278,7 +306,6 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
           </button>
         )}
 
-        {/* ✅ Table status buttons (chỉ khi KHÔNG phải DRAFT) */}
         {!isDraft && table.status === "REQUESTING_BILL" && (
           <button
             onClick={handleSetCleaning}
@@ -301,7 +328,6 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
           </button>
         )}
 
-        {/* ✅ Reset: ẩn khi DRAFT */}
         {!isDraft && table.status !== "AVAILABLE" && (
           <>
             <div style={{ height: 12 }} />

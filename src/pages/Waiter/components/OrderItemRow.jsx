@@ -1,12 +1,14 @@
+/* eslint-disable no-unused-vars */
 import { useMemo, useState } from "react";
 import { deleteItem, updateItem } from "../../../api/waiter.api";
+import ItemStatusSelect from "./ItemStatusSelect"; // ✅ Import component chọn trạng thái
 
 export default function OrderItemRow({
   item,
   orderId,
   reload,
   orderStatus,
-  hideStatusSelect = false, // giữ để tương thích, draft đang hide
+  hideStatusSelect = false, // ✅ True khi ở màn hình chọn món (Draft), False khi ở Active Panel
 }) {
   const itemId = item.itemId ?? item.id;
 
@@ -16,6 +18,9 @@ export default function OrderItemRow({
   );
 
   const isLocked = orderStatus === "COMPLETED" || orderStatus === "CANCELED";
+  
+  // Logic hiển thị Badge màu sắc cho trạng thái (dùng để hiển thị text nếu không dùng dropdown)
+  const statusColor = item.status === "READY" ? "#16a34a" : item.status === "COOKING" ? "#ea580c" : "#666";
 
   const [qty, setQty] = useState(Number(item.qty || 1));
   const [note, setNote] = useState(item.note || "");
@@ -73,16 +78,28 @@ export default function OrderItemRow({
       style={{
         padding: "12px 0",
         borderBottom: "1px dashed rgba(120, 53, 15, 0.18)",
+        backgroundColor: item.status === "CANCELED" ? "#fef2f2" : "transparent" // Highlight nhẹ nếu bị hủy
       }}
     >
       {/* Hàng 1: tên món + qty */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <b className="menuName" style={{ fontSize: 16 }}>{itemName}</b>
+        <div style={{display: 'flex', flexDirection: 'column'}}>
+            <b className="menuName" style={{ fontSize: 16, textDecoration: item.status === "CANCELED" ? "line-through" : "none" }}>
+                {itemName}
+            </b>
+            {/* Nếu đang hideStatusSelect (Draft) thì không hiện status text ở đây */}
+            {!hideStatusSelect && item.status && (
+                <span style={{fontSize: 11, color: statusColor, fontWeight: 600}}>
+                    {item.status}
+                </span>
+            )}
+        </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Chỉ cho sửa số lượng nếu chưa SERVED/CANCELED hoặc tuỳ logic nhà hàng */}
           <button
             className="menuBadge"
-            disabled={isLocked || saving}
+            disabled={isLocked || saving || item.status === "CANCELED" || item.status === "SERVED"}
             onClick={decQty}
             style={{ padding: "6px 10px", background: "#fff", cursor: "pointer" }}
             title="Giảm"
@@ -94,7 +111,7 @@ export default function OrderItemRow({
 
           <button
             className="menuBadge"
-            disabled={isLocked || saving}
+            disabled={isLocked || saving || item.status === "CANCELED" || item.status === "SERVED"}
             onClick={incQty}
             style={{ padding: "6px 10px", background: "#fff", cursor: "pointer" }}
             title="Tăng"
@@ -136,7 +153,6 @@ export default function OrderItemRow({
           Save
         </button>
 
-        {/* ✅ X ngang hàng Save */}
         <button
           onClick={handleDelete}
           disabled={isLocked || saving}
@@ -157,6 +173,23 @@ export default function OrderItemRow({
           ✕
         </button>
       </div>
+
+      {/* ✅ Hàng 3: SELECT TRẠNG THÁI (Chỉ hiện khi Order Active) */}
+      {!hideStatusSelect && (
+        <div style={{ marginTop: 12, paddingTop: 8, borderTop: "1px dotted #eee", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{fontSize: 12, color: "#888", fontStyle: "italic"}}>Cập nhật bếp:</span>
+            
+            {/* Component Status Select */}
+            <div style={{ width: "140px" }}>
+                <ItemStatusSelect 
+                    item={item} 
+                    orderId={orderId} 
+                    reload={reload} 
+                    disabled={isLocked}
+                />
+            </div>
+        </div>
+      )}
     </div>
   );
 }

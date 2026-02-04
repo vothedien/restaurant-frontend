@@ -112,7 +112,7 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
 
       await confirmOrder(orderId);
 
-      // Ép item DRAFT -> PENDING (phòng backend không tự làm)
+      // Ép item DRAFT -> PENDING
       const draftItems =
         order?.items?.filter((i) => !i.status || i.status === "DRAFT") || [];
       if (draftItems.length > 0) {

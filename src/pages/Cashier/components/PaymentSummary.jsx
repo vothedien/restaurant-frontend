@@ -28,7 +28,7 @@ export default function PaymentSummary({ items = [] }) {
           {items.length === 0 ? (
             <tr>
               <td colSpan={3} className="menuDesc" style={{ padding: "10px 0", textAlign: "center" }}>
-                Không có món nào trong hóa đơn.
+                Không có món nào trong hóa đơn!
               </td>
             </tr>
           ) : (

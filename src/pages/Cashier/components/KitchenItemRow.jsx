@@ -28,7 +28,7 @@ export default function KitchenItemRow({ item, orderId, reload }) {
 
         {missing && (
           <div style={{ marginTop: 6, fontSize: 12, color: "#ef4444" }}>
-            Thiếu {(!orderId ? "orderId" : "")}{(!orderId && !normalizedItem.id ? " & " : "")}{(!normalizedItem.id ? "itemId" : "")} nên chưa đổi trạng thái được.
+            Thiếu {(!orderId ? "orderId" : "")}{(!orderId && !normalizedItem.id ? " & " : "")}{(!normalizedItem.id ? "itemId" : "")} nên chưa đổi trạng thái được!
           </div>
         )}
       </div>

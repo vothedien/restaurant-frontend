@@ -6,7 +6,7 @@ export default function KitchenPanel({ table, onClose }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const effectiveOrderId = table?.currentOrderId ?? order?.id; // ✅ fallback
+  const effectiveOrderId = table?.currentOrderId ?? order?.id; 
 
   const loadOrder = useCallback(async () => {
     if (!table?.currentOrderId) return;
@@ -71,7 +71,7 @@ export default function KitchenPanel({ table, onClose }) {
             <KitchenItemRow
               key={item.id ?? item.itemId ?? item.orderItemId}
               item={item}
-              orderId={effectiveOrderId}   // ✅ dùng effectiveOrderId
+              orderId={effectiveOrderId}   // 
               reload={loadOrder}
             />
           ))

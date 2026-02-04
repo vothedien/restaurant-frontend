@@ -59,7 +59,7 @@ export default function CheckoutForm({ bill, orderId, onSuccess }) {
     } catch (err) {
       const msg = err.response?.data?.message || err.message || "Lỗi không xác định";
 
-      // ✅ Nếu backend báo “đã thanh toán trước đó” => coi như xong, refresh UI
+      // Nếu backend báo “đã thanh toán trước đó” => coi như xong, refresh UI
       const lower = String(msg).toLowerCase();
       if (lower.includes("đã được thanh toán") || lower.includes("already paid") || lower.includes("paid before")) {
         alert("Order này đã được thanh toán trước đó. Mình sẽ tải lại danh sách bàn.");

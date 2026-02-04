@@ -25,7 +25,7 @@ export default function ItemStatusSelectKitchen({ item, orderId, reload }) {
   const itemId = useMemo(() => item?.id ?? item?.itemId ?? item?.orderItemId, [item]);
   const currentStatus = item?.status ?? "PENDING";
 
-  // ✅ rule chuyển trạng thái kiểu bếp:
+  // rule chuyển trạng thái kiểu bếp:
   // PENDING -> COOKING/READY/CANCELED
   // COOKING -> READY/CANCELED
   // READY -> READY (khóa)
@@ -48,7 +48,7 @@ export default function ItemStatusSelectKitchen({ item, orderId, reload }) {
 
     let cancelReason = "";
 
-    // ✅ nếu chọn CANCEL thì hỏi lý do
+    // nếu chọn CANCEL thì hỏi lý do
     if (nextStatus === "CANCELED") {
       cancelReason = window.prompt("Cancel reason?", "Out of stock / Customer changed")?.trim() || "";
       if (!cancelReason) return;
@@ -59,7 +59,6 @@ export default function ItemStatusSelectKitchen({ item, orderId, reload }) {
       await setItemStatus(orderId, itemId, nextStatus, cancelReason);
       await reload?.();
 
-      // ✅ bắn event để tab waiter tự reload (KHÔNG polling)
       broadcastUpdate({
         type: "ITEM_STATUS_UPDATED",
         orderId,

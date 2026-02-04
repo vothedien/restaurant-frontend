@@ -35,7 +35,7 @@ export default function BillPanel({ table, reloadTables, onClose }) {
     fetchBill();
   }, [orderId]);
 
-  // ✅ nếu bàn không còn trạng thái yêu cầu tính tiền nữa -> đóng
+  // nếu bàn không còn trạng thái yêu cầu tính tiền nữa -> đóng
   if (table.status !== "REQUESTING_BILL") {
     return (
       <div className="sectionCard" style={{ textAlign: "center", padding: "30px" }}>

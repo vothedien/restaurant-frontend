@@ -44,7 +44,6 @@ export default function CashierPage() {
   const requestingCount = tables.filter((t) => t.status === "REQUESTING_BILL").length;
   const occupiedCount = tables.filter((t) => t.status === "OCCUPIED").length;
 
-  // ✅ Hàm quyết định hiển thị Panel bên phải
   const renderRightPanel = () => {
     if (!selectedTable) {
       return (

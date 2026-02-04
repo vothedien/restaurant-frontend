@@ -1,35 +1,45 @@
 import { useMemo, useState } from "react";
-import { setItemStatus } from "../../../api/waiter.api"; 
+import { setItemStatus } from "../../../api/waiter.api";
 
+// ✅ chuẩn hoá status cho đúng với waiter (CANCELED)
 const STATUS_OPTIONS = [
   { value: "PENDING", label: "PENDING" },
   { value: "COOKING", label: "COOKING" },
   { value: "READY", label: "READY" },
-  
-   { value: "CANCELLED", label: "Hủy" },
+  { value: "CANCELED", label: "CANCEL" }, // ✅ English
 ];
+
+function broadcastUpdate(payload) {
+  try {
+    const ch = new BroadcastChannel("mq_order_events");
+    ch.postMessage(payload);
+    ch.close();
+  } catch {
+    // ignore
+  }
+}
 
 export default function ItemStatusSelectKitchen({ item, orderId, reload }) {
   const [saving, setSaving] = useState(false);
 
-  const itemId = useMemo(
-    () => item?.id ?? item?.itemId ?? item?.orderItemId,
-    [item]
-  );
-
+  const itemId = useMemo(() => item?.id ?? item?.itemId ?? item?.orderItemId, [item]);
   const currentStatus = item?.status ?? "PENDING";
 
+  // ✅ rule chuyển trạng thái kiểu bếp:
+  // PENDING -> COOKING/READY/CANCELED
+  // COOKING -> READY/CANCELED
+  // READY -> READY (khóa)
   const options = useMemo(() => {
     if (currentStatus === "PENDING") return STATUS_OPTIONS;
     if (currentStatus === "COOKING")
       return STATUS_OPTIONS.filter((s) => s.value !== "PENDING");
-    if (currentStatus === "READY")
-      return STATUS_OPTIONS.filter((s) => s.value === "READY");
+    if (currentStatus === "READY") return STATUS_OPTIONS.filter((s) => s.value === "READY");
+    if (currentStatus === "CANCELED") return STATUS_OPTIONS.filter((s) => s.value === "CANCELED");
     return STATUS_OPTIONS;
   }, [currentStatus]);
 
   const missing = !orderId || !itemId;
-  const disabled = missing || saving;
+  const disabled = missing || saving || currentStatus === "READY" || currentStatus === "CANCELED";
 
   const onChange = async (e) => {
     const nextStatus = e.target.value;
@@ -38,18 +48,27 @@ export default function ItemStatusSelectKitchen({ item, orderId, reload }) {
 
     let cancelReason = "";
 
-    // Nếu bạn bật CANCELLED ở STATUS_OPTIONS thì dùng đoạn này:
-    // if (nextStatus === "CANCELLED") {
-    //   cancelReason = window.prompt("Lý do hủy món?")?.trim() || "";
-    //   if (!cancelReason) return; // user cancel prompt hoặc để trống
-    // }
+    // ✅ nếu chọn CANCEL thì hỏi lý do
+    if (nextStatus === "CANCELED") {
+      cancelReason = window.prompt("Cancel reason?", "Out of stock / Customer changed")?.trim() || "";
+      if (!cancelReason) return;
+    }
 
     setSaving(true);
     try {
       await setItemStatus(orderId, itemId, nextStatus, cancelReason);
       await reload?.();
+
+      // ✅ bắn event để tab waiter tự reload (KHÔNG polling)
+      broadcastUpdate({
+        type: "ITEM_STATUS_UPDATED",
+        orderId,
+        itemId,
+        status: nextStatus,
+      });
     } catch (err) {
       console.error("setItemStatus failed:", err);
+      alert("Update status failed: " + (err?.response?.data?.message || err.message));
     } finally {
       setSaving(false);
     }
@@ -80,15 +99,13 @@ export default function ItemStatusSelectKitchen({ item, orderId, reload }) {
 
       {missing && (
         <div style={{ fontSize: 12, color: "#ef4444" }}>
-          Thiếu {(!orderId ? "orderId" : "")}
+          Missing {(!orderId ? "orderId" : "")}
           {!orderId && !itemId ? " & " : ""}
-          {!itemId ? "itemId" : ""} nên chưa đổi trạng thái được.
+          {!itemId ? "itemId" : ""} so cannot update.
         </div>
       )}
 
-      {saving && (
-        <div style={{ fontSize: 12, color: "#6b7280" }}>Đang lưu...</div>
-      )}
+      {saving && <div style={{ fontSize: 12, color: "#6b7280" }}>Saving...</div>}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import {
   requestBill,
   setCleaning,
   setAvailable,
-  setItemStatus
+  setItemStatus,
 } from "../../../api/waiter.api";
 
 import AddItemForm from "./AddItemForm";
@@ -20,23 +20,21 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Lấy orderId từ order state hoặc từ props table
   const orderId = useMemo(
     () => order?.orderId || table.currentOrderId || null,
     [order, table.currentOrderId]
   );
 
-  // Hàm load dữ liệu order
   const loadOrder = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // 1) Ưu tiên tìm DRAFT theo tableId
+      // 1) ưu tiên DRAFT theo tableId
       const draft = await getDraftByTable(table.id);
       setOrder(draft);
     } catch (err) {
-      // 2) Không có draft -> load ACTIVE bằng currentOrderId
+      // 2) không có draft -> load ACTIVE bằng currentOrderId
       const currentId = table.currentOrderId;
 
       if (currentId) {
@@ -58,41 +56,83 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
     }
   }, [table.id, table.currentOrderId]);
 
-  // Load order khi component mount hoặc dependencies thay đổi
+  // Load lần đầu khi đổi bàn / đổi currentOrderId
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
 
-  const orderStatus = order?.status; // DRAFT / ACTIVE / COMPLETED...
+  // ✅ CHỈ reload khi cashier (hoặc tab khác) bắn event
+  useEffect(() => {
+    // BroadcastChannel chỉ hoạt động giữa các tab cùng origin (localhost:5173)
+    const ch = new BroadcastChannel("mq_order_events");
+
+    const onMessage = (ev) => {
+      const msg = ev?.data;
+      if (!msg || typeof msg !== "object") return;
+
+      // ví dụ msg:
+      // { type: "ITEM_STATUS_UPDATED", orderId: 19, itemId: 123, status: "COOKING" }
+      // { type: "ORDER_UPDATED", orderId: 19 }
+
+      // Nếu orderId khớp order đang mở thì reload
+      const sameOrder =
+        msg.orderId != null && String(msg.orderId) === String(orderId);
+
+      // Hoặc nếu msg có tableId và trùng bàn
+      const sameTable =
+        msg.tableId != null && String(msg.tableId) === String(table.id);
+
+      if (sameOrder || sameTable) {
+        // chỉ reload nếu không đang bấm thao tác (đỡ giật)
+        if (!actionLoading) {
+          loadOrder();
+          if (typeof reloadTables === "function") reloadTables();
+        }
+      }
+    };
+
+    ch.addEventListener("message", onMessage);
+
+    return () => {
+      ch.removeEventListener("message", onMessage);
+      ch.close();
+    };
+  }, [orderId, table.id, loadOrder, reloadTables, actionLoading]);
+
+  const orderStatus = order?.status;
   const isDraft = orderStatus === "DRAFT";
   const isActive = orderStatus === "ACTIVE";
 
-  // --- HÀM CONFIRM ---
-  // Khi confirm, Backend sẽ tự chuyển Items -> PENDING
   const handleConfirm = async () => {
     if (!orderId) return;
     if (!window.confirm("Xác nhận chuyển đơn vào bếp?")) return;
 
     try {
       setActionLoading(true);
-      
-      // 1. Xác nhận đơn (Order -> ACTIVE)
+
       await confirmOrder(orderId);
 
-      // 2. ✅ LOGIC MỚI: Ép tất cả món DRAFT -> PENDING
-      // (Phòng trường hợp Backend không tự làm)
-      const draftItems = order?.items?.filter(i => !i.status || i.status === 'DRAFT') || [];
-      
+      // Ép item DRAFT -> PENDING (phòng backend không tự làm)
+      const draftItems =
+        order?.items?.filter((i) => !i.status || i.status === "DRAFT") || [];
       if (draftItems.length > 0) {
-        // Chạy song song tất cả lệnh update để nhanh hơn
-        await Promise.all(draftItems.map(item => {
-          const itemId = item.itemId || item.id;
-          return setItemStatus(orderId, itemId, "PENDING", "");
-        }));
+        await Promise.all(
+          draftItems.map((item) => {
+            const itemId = item.itemId || item.id;
+            return setItemStatus(orderId, itemId, "PENDING", "");
+          })
+        );
       }
 
       await reloadTables();
-      await loadOrder(); 
+      await loadOrder();
+
+      // bắn event để tab khác biết (optional)
+      try {
+        const ch = new BroadcastChannel("mq_order_events");
+        ch.postMessage({ type: "ORDER_UPDATED", orderId, tableId: table.id });
+        ch.close();
+      } catch {}
     } catch (e) {
       alert("Lỗi confirm: " + (e?.response?.data?.message || e.message));
     } finally {
@@ -110,6 +150,12 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
       await rejectOrder(orderId, reason);
       await reloadTables();
       await loadOrder();
+
+      try {
+        const ch = new BroadcastChannel("mq_order_events");
+        ch.postMessage({ type: "ORDER_UPDATED", orderId, tableId: table.id });
+        ch.close();
+      } catch {}
     } catch (e) {
       alert("Lỗi reject: " + (e?.response?.data?.message || e.message));
     } finally {
@@ -124,6 +170,13 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
       setActionLoading(true);
       await requestBill(table.id);
       await reloadTables();
+      await loadOrder();
+
+      try {
+        const ch = new BroadcastChannel("mq_order_events");
+        ch.postMessage({ type: "TABLE_UPDATED", tableId: table.id, orderId });
+        ch.close();
+      } catch {}
     } catch (e) {
       alert("Lỗi yêu cầu tính tiền: " + (e?.response?.data?.message || e.message));
     } finally {
@@ -138,6 +191,13 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
       setActionLoading(true);
       await setCleaning(table.id);
       await reloadTables();
+      await loadOrder();
+
+      try {
+        const ch = new BroadcastChannel("mq_order_events");
+        ch.postMessage({ type: "TABLE_UPDATED", tableId: table.id, orderId });
+        ch.close();
+      } catch {}
     } catch (e) {
       alert("Lỗi set cleaning: " + (e?.response?.data?.message || e.message));
     } finally {
@@ -152,6 +212,13 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
       setActionLoading(true);
       await setAvailable(table.id);
       await reloadTables();
+      await loadOrder();
+
+      try {
+        const ch = new BroadcastChannel("mq_order_events");
+        ch.postMessage({ type: "TABLE_UPDATED", tableId: table.id, orderId });
+        ch.close();
+      } catch {}
     } catch (e) {
       alert("Lỗi trả bàn: " + (e?.response?.data?.message || e.message));
     } finally {
@@ -187,6 +254,13 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
 
       alert("✅ Đã reset bàn về AVAILABLE!");
       await reloadTables();
+      await loadOrder();
+
+      try {
+        const ch = new BroadcastChannel("mq_order_events");
+        ch.postMessage({ type: "TABLE_UPDATED", tableId: table.id, orderId });
+        ch.close();
+      } catch {}
     } catch (err) {
       alert("❌ Reset thất bại: " + (err.response?.data?.message || err.message));
     } finally {
@@ -214,9 +288,12 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
 
         <div className="flex gap-2">
           <span className="menuBadge">{table.status}</span>
-          {/* Chỉ hiện status Active/Draft, ko hiện OrderID cho đỡ rối */}
           {orderStatus && (
-            <span className={`menuBadge ${isDraft ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+            <span
+              className={`menuBadge ${
+                isDraft ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"
+              }`}
+            >
               {orderStatus}
             </span>
           )}
@@ -236,9 +313,6 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
               orderId={orderId}
               reload={loadOrder}
               orderStatus={orderStatus}
-              // ✅ QUAN TRỌNG:
-              // Nếu là Draft: Ẩn status select (vì chưa gửi bếp)
-              // Nếu là Active: Hiện status select (nhưng logic bên trong chỉ cho sửa khi READY)
               hideStatusSelect={isDraft}
             />
           ))
@@ -254,7 +328,6 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
       </div>
 
       <div style={{ marginTop: "20px", borderTop: "2px solid #eee", paddingTop: "15px" }}>
-        {/* Nút Confirm chỉ hiện khi là DRAFT */}
         {isDraft && (
           <div>
             <button
@@ -289,17 +362,11 @@ export default function ActiveOrderPanel({ table, reloadTables }) {
           </div>
         )}
 
-        {/* Khi Active, chỉ hiện các nút thao tác bàn */}
         {isActive && table.status === "OCCUPIED" && (
           <button
             onClick={handleRequestBill}
             className="addBtn"
-            style={{
-              ...btnBase,
-              background: "var(--mq-orange)",
-              boxShadow: "none",
-              marginTop: 0,
-            }}
+            style={{ ...btnBase, background: "var(--mq-orange)", boxShadow: "none", marginTop: 0 }}
             disabled={actionLoading}
           >
             {actionLoading ? "Đang xử lý..." : "Yêu cầu tính tiền"}
